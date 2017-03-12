@@ -1,5 +1,9 @@
 module sistemaDeIrrigacao
 
+open util/ordering[Time] as to
+
+sig Time { }
+
 sig MaquinaDeIrrigacao {
 	tanque: one TanqueDeAgua,
 	bateria: one Bateria
@@ -9,7 +13,7 @@ sig Sensor {
 
 }
 
-abstract sig Base {	}
+abstract sig Base { }
 
 sig BaseDeEnergia extends Base { }
 
@@ -32,8 +36,20 @@ pred tanquePorMaquina[t:TanqueDeAgua] {
 }
 
 pred celulaPorBateria[c:Celula] {
-	one 	c.~celulas
+	one c.~celulas
 }
+
+-- Adicona tres celulas em uma bateria b
+--pred addCelulas[c1, c2, c3:Celula, b:Bateria, t,t':Time] {
+--	(c1 !in (b.celulas).t) && (c2 !in (b.celulas).t) && (c3 !in (b.celulas).t)
+--	(b.celulas).t' = (b.celulas).t + c1 + c2 + c3
+--}
+
+-- Remove uma celula da bateria b
+--pred removeCelula[c:Celula, b:Bateria, t,t':Time] {
+--	c in (b.celulas).t
+--	(b.celulas).t' = (b.celulas).t - c
+--}
 
 fun conjuntoDeCelulas[b:Bateria]: set Celula {
 	b.celulas
