@@ -2,6 +2,8 @@ module sistemaDeIrrigacao
 
 open util/ordering[Time] as to
 
+------------------------------------------------------------- Assinaturas -------------------------------------------------------------
+
 sig Time { }
 
 sig MaquinaDeIrrigacao {
@@ -27,6 +29,20 @@ sig Celula { }
 
 sig TanqueDeAgua { }
 
+------------------------------------------------------------- Predicados -------------------------------------------------------------
+
+pred umTanquePorMaquina[m: MaquinaDeIrrigacao] {
+	#(m.tanque) = 1
+}
+
+pred umaBateriaPorMaquina[m: MaquinaDeIrrigacao] {
+	#(m.bateria) = 1
+}
+
+pred maximoDeCelulasPorBateria[b: Bateria, t: Time] {
+	#(getCelulas[b, t]) <= 3
+}
+
 pred bateriaPorMaquina[b:Bateria] {
 	one b.~bateria
 }
@@ -39,10 +55,6 @@ pred celulaPorBateria[c:Celula, t:Time] {
 	one c.~(celulas.t)
 }
 
-fun conjuntoDeCelulas[b:Bateria, t:Time]: set Celula {
-	b.(celulas.t)
-}
-
 pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
 	m1 !in (s.maquinaNoSensor).t && 	m2 !in (s.maquinaNoSensor).t
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
@@ -53,6 +65,31 @@ pred removeMaquinaSensor[m1:MaquinaDeIrrigacao, s:Sensor, t,t':Time] {
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m1
 }
 
+------------------------------------------------------------- Funções -------------------------------------------------------------
+
+/*
+* Retorna o conjunto de células de uma bateria em um determinado tempo.
+*/
+fun getCelulas[b:Bateria, t:Time]: set Celula {
+	b.(celulas.t)
+}
+
+/*
+* Retorna a máquina que está ligada ao sensor em um determinado tempo.
+*/
+fun getMaquina[s:Sensor, t:Time]: one MaquinaDeIrrigacao {
+	s.(maquinaNoSensor.t)
+}
+
+/*
+* Retorna o sensor que está utilizando a máquina em um determinado tempo.
+*/
+fun getSensor[m: MaquinaDeIrrigacao, t: Time]: one Sensor {
+	m.~(maquinaNoSensor.t)
+}
+
+------------------------------------------------------------- Fatos -------------------------------------------------------------
+
 fact invariantes {
 	
 	#MaquinaDeIrrigacao = 4
@@ -62,9 +99,9 @@ fact invariantes {
 	#BaseDeEnergia = 1
 	#BaseDeAgua = 1
 
-	all m:MaquinaDeIrrigacao | #(m.tanque) = 1
+	all m:MaquinaDeIrrigacao | umTanquePorMaquina[m]
 
-	all m:MaquinaDeIrrigacao | #(m.bateria) = 1
+	all m:MaquinaDeIrrigacao | umaBateriaPorMaquina[m]
 
 	all b:Bateria | bateriaPorMaquina[b]
 
@@ -72,16 +109,18 @@ fact invariantes {
 
 	all c:Celula, t:Time | celulaPorBateria[c, t]
 
-	all b:Bateria, t:Time | #(conjuntoDeCelulas[b, t]) = 3
+	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
 
-	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, tempo:Time | (m1 in s1.(maquinaNoSensor.tempo)) => m2 !in s1.(maquinaNoSensor.tempo) && (s1 in (m1.~(maquinaNoSensor.tempo)) => s2 !in (m1.~(maquinaNoSensor.tempo))) 
+	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, t:Time | (m1 in getMaquina[s1, t] => m2 !in getMaquina[s1, t]) && (s1 in getSensor[m1, t] => s2 !in getSensor[m1, t])
 
---	all b1:Bateria,b2:Bateria - b1, c1:Celula, c2:Celula - c1, t:Time | (c1 in b1.(celulas.t)) => c2 !in b1.(celulas.t) && (b1 in (c1.~(celulas.t)) => b2 !in (c1.~(celulas.t)))
 }
+
+------------------------------------------------------------- Temporal -------------------------------------------------------------
 
 pred init [t: Time] {
 	no (Sensor.maquinaNoSensor).t
-	#(Bateria.celulas.t) = 12
+	all b:Bateria | #(getCelulas[b, t]) = 3
+
 }
 
 fact traces {
