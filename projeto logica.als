@@ -25,7 +25,9 @@ sig Bateria {
 	celulas: Celula -> Time
 }
 
-sig Celula { }
+abstract sig Celula {}
+
+sig Carregada, Descarregada extends Celula {}
 
 sig TanqueDeAgua { }
 
@@ -60,10 +62,16 @@ pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Senso
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
 }
 
-pred removeMaquinaSensor[m1:MaquinaDeIrrigacao, s:Sensor, t,t':Time] {
-	m1 in (s.maquinaNoSensor).t
-	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m1
+pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, t,t':Time] {
+	m in (s.maquinaNoSensor).t
+	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
+
+--	recarregarBateria[m, t']
 }
+
+--pred recarregarBateria[m:MaquinaDeIrrigacao, t: Time] {
+--	
+--}
 
 ------------------------------------------------------------- Funções -------------------------------------------------------------
 
