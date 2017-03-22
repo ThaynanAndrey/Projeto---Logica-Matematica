@@ -20,7 +20,7 @@ sig BaseDeEnergia extends Base { }
 sig BaseDeAgua extends Base { }
 
 sig Bateria {
-	celulas: set Celula
+	celulas: Celula -> Time
 }
 
 sig Celula { }
@@ -35,12 +35,12 @@ pred tanquePorMaquina[t:TanqueDeAgua] {
 	one t.~tanque
 }
 
-pred celulaPorBateria[c:Celula] {
-	one c.~celulas
+pred celulaPorBateria[c:Celula, t:Time] {
+	one c.~(celulas.t)
 }
 
-fun conjuntoDeCelulas[b:Bateria]: set Celula {
-	b.celulas
+fun conjuntoDeCelulas[b:Bateria, t:Time]: set Celula {
+	b.(celulas.t)
 }
 
 pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
@@ -70,15 +70,18 @@ fact invariantes {
 
 	all t:TanqueDeAgua | tanquePorMaquina[t]
 
-	all c:Celula | celulaPorBateria[c]
+	all c:Celula, t:Time | celulaPorBateria[c, t]
 
-	all b:Bateria | #(conjuntoDeCelulas[b]) = 3
+	all b:Bateria, t:Time | #(conjuntoDeCelulas[b, t]) = 3
 
 	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, tempo:Time | (m1 in s1.(maquinaNoSensor.tempo)) => m2 !in s1.(maquinaNoSensor.tempo) && (s1 in (m1.~(maquinaNoSensor.tempo)) => s2 !in (m1.~(maquinaNoSensor.tempo))) 
+
+--	all b1:Bateria,b2:Bateria - b1, c1:Celula, c2:Celula - c1, t:Time | (c1 in b1.(celulas.t)) => c2 !in b1.(celulas.t) && (b1 in (c1.~(celulas.t)) => b2 !in (c1.~(celulas.t)))
 }
 
 pred init [t: Time] {
 	no (Sensor.maquinaNoSensor).t
+	#(Bateria.celulas.t) = 12
 }
 
 fact traces {
