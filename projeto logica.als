@@ -94,7 +94,7 @@ fact invariantes {
 	--#Bateria = 4
 	#TanqueDeAgua = 4
 	#Sensor = 5
-	#BaseDeEnergia = 1
+	#BaseDeEnergia = 0
 	#BaseDeAgua = 1
 
 	all m:MaquinaDeIrrigacao | umTanquePorMaquina[m]
@@ -116,24 +116,33 @@ fact invariantes {
 	
 	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | (m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next)) => m in b.maquinaNaBase.(t.next)
 --	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | m in b.maquinaNaBase.(t.next) => (m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next))
+	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, t:Time, b:BaseDeAgua | m1 in b.maquinaNaBase.t => m2 !in  b.maquinaNaBase.(t.next)
 }
 
-pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
+pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time,  b:BaseDeAgua] {
 	m1 !in (s.maquinaNoSensor).t && m2 !in (s.maquinaNoSensor).t
+	m1 !in b.maquinaNaBase.t && m2 !in b.maquinaNaBase.t
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
 }
 
 pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, b:BaseDeAgua, t,t':Time] {
-	m in (s.maquinaNoSensor).t and m !in b.maquinaNaBase.t
-	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
+	m in (s.maquinaNoSensor).t 
+	m !in b.maquinaNaBase.t
+
+	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m 
+
 	b.maquinaNaBase.t' = b.maquinaNaBase.t + m
 --	recarregarBateria[m, t']
+}
+
+pred removerDaBase[m:MaquinaDeIrrigacao,  b:BaseDeAgua, t,t':Time] {
+	m in b.maquinaNaBase.t
+	b.maquinaNaBase.t' = b.maquinaNaBase.t - m
 }
 
 pred addMaquinaBaseDeAgua[m1:MaquinaDeIrrigacao, b:Base, s:Sensor, t,t':Time] {
 	(m1 !in (b.maquinaNaBase).t) and (m1 in (s.maquinaNoSensor).t)
 	(b.maquinaNaBase).t' = (b.maquinaNaBase).t + m1
-
 }
 
 ------------------------------------------------------------- Temporal -------------------------------------------------------------
@@ -141,6 +150,7 @@ pred addMaquinaBaseDeAgua[m1:MaquinaDeIrrigacao, b:Base, s:Sensor, t,t':Time] {
 pred init [t: Time] {
 	no (Sensor.maquinaNoSensor).t
 	no (BaseDeAgua.maquinaNaBase).t
+	no (BaseDeAgua.maquinaNaBase).(t.next)
 	no (BaseDeEnergia.maquinaNaBase).t
 	all b:Bateria | #(getCelulas[b, t]) = 3
 
@@ -150,13 +160,14 @@ fact traces {
 	init [first]
 	all pre: Time-last | let pos = pre.next |
 	some m1:MaquinaDeIrrigacao, s: Sensor, b:BaseDeAgua | all m2:MaquinaDeIrrigacao |
-		addMaquinaSensor[m1, m2, s, pre, pos]  or
-		removeMaquinaSensor[m1, s, b, pre, pos]
+		addMaquinaSensor[m1, m2, s, pre, pos, b]  or
+		removeMaquinaSensor[m1, s, b, pre, pos] or 
+		removerDaBase[m1, b, pre, pos]
 }
 
 pred show[]  {}
 
-run show for 7
+run show for 10
 
 
 -- Adicona tres celulas em uma bateria b
