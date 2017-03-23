@@ -56,23 +56,28 @@ pred maximoDeCelulasPorBateria[b: Bateria, t: Time] {
 	#(getCelulas[b, t]) <= 3
 }
 
+-- Restringe que cada célula pertence à uma única bateria, em um determinado tempo.
 pred unicaBateriaPorCelula[c:Celula, t:Time] {
 	one c.~(celulas.t)
 }
 
+-- Restringe que cada sensor possui uma única máquina, em um determinado tempo.
 pred umaMaquinaPorSensor[m1, m2:MaquinaDeIrrigacao, s:Sensor, t:Time] {
 	m1 in getMaquina[s, t] => m2 !in getMaquina[s, t]
 }
 
+-- Restringe que cada máquina pertence à um único sensor, em um determinado tempo.
 pred umSensorPorMaquina[m:MaquinaDeIrrigacao, s1, s2:Sensor, t:Time] {
 	s1 in getSensor[m, t] => s2 !in getSensor[m, t]
 }
 
+-- Leva uma máquina até o sensor para fazer a irrigação.
 pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
 	m1 !in (s.maquinaNoSensor).t && 	m2 !in (s.maquinaNoSensor).t
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
 }
 
+-- Faz com que a máquina que estava em um sensor, termine a irrigação e vá reabastecer sua bateria e tanque.
 pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, t,t':Time] {
 	m in (s.maquinaNoSensor).t
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
