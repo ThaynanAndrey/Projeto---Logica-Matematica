@@ -25,7 +25,9 @@ sig Bateria {
 	celulas: Celula -> Time
 }
 
-sig Celula { }
+abstract sig Celula {}
+
+sig Carregada, Descarregada extends Celula {}
 
 sig TanqueDeAgua { }
 
