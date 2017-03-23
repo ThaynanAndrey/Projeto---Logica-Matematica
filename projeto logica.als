@@ -8,14 +8,16 @@ sig Time { }
 
 sig MaquinaDeIrrigacao {
 	tanque: one TanqueDeAgua,
-	bateria: one Bateria
+	--bateria: one Bateria
 }
 
 sig Sensor {
 	maquinaNoSensor: MaquinaDeIrrigacao -> Time
 }
 
-abstract sig Base { }
+abstract sig Base { 
+	maquinaNaBase: MaquinaDeIrrigacao -> Time
+}
 
 sig BaseDeEnergia extends Base { }
 
@@ -25,9 +27,7 @@ sig Bateria {
 	celulas: Celula -> Time
 }
 
-abstract sig Celula {}
-
-sig Carregada, Descarregada extends Celula {}
+sig Celula {}
 
 sig TanqueDeAgua { }
 
@@ -37,6 +37,7 @@ pred umTanquePorMaquina[m: MaquinaDeIrrigacao] {
 	#(m.tanque) = 1
 }
 
+/*
 pred umaBateriaPorMaquina[m: MaquinaDeIrrigacao] {
 	#(m.bateria) = 1
 }
@@ -48,26 +49,15 @@ pred maximoDeCelulasPorBateria[b: Bateria, t: Time] {
 pred bateriaPorMaquina[b:Bateria] {
 	one b.~bateria
 }
+*/
 
 pred tanquePorMaquina[t:TanqueDeAgua] {
 	one t.~tanque
 }
 
-pred celulaPorBateria[c:Celula, t:Time] {
-	one c.~(celulas.t)
-}
-
-pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
-	m1 !in (s.maquinaNoSensor).t && 	m2 !in (s.maquinaNoSensor).t
-	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
-}
-
-pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, t,t':Time] {
-	m in (s.maquinaNoSensor).t
-	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
-
---	recarregarBateria[m, t']
-}
+--pred celulaPorBateria[c:Celula, t:Time] {
+	---one c.~(celulas.t)
+---}
 
 --pred recarregarBateria[m:MaquinaDeIrrigacao, t: Time] {
 --	
@@ -101,7 +91,7 @@ fun getSensor[m: MaquinaDeIrrigacao, t: Time]: one Sensor {
 fact invariantes {
 	
 	#MaquinaDeIrrigacao = 4
-	#Bateria = 4
+	--#Bateria = 4
 	#TanqueDeAgua = 4
 	#Sensor = 5
 	#BaseDeEnergia = 1
@@ -109,17 +99,40 @@ fact invariantes {
 
 	all m:MaquinaDeIrrigacao | umTanquePorMaquina[m]
 
-	all m:MaquinaDeIrrigacao | umaBateriaPorMaquina[m]
+--	all m:MaquinaDeIrrigacao | umaBateriaPorMaquina[m]
 
-	all b:Bateria | bateriaPorMaquina[b]
+--	all b:Bateria | bateriaPorMaquina[b]
 
 	all t:TanqueDeAgua | tanquePorMaquina[t]
 
-	all c:Celula, t:Time | celulaPorBateria[c, t]
+--	all c:Celula, t:Time | celulaPorBateria[c, t]
 
-	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
+--	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
 
 	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, t:Time | (m1 in getMaquina[s1, t] => m2 !in getMaquina[s1, t]) && (s1 in getSensor[m1, t] => s2 !in getSensor[m1, t])
+
+	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | m in s.maquinaNoSensor.t => m !in b.maquinaNaBase.t
+	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | m in b.maquinaNaBase.t => m !in s.maquinaNoSensor.t
+	
+	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | (m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next)) => m in b.maquinaNaBase.(t.next)
+--	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, b:BaseDeAgua | m in b.maquinaNaBase.(t.next) => (m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next))
+}
+
+pred addMaquinaSensor[m1:MaquinaDeIrrigacao, m2:MaquinaDeIrrigacao - m1, s:Sensor, t,t':Time] {
+	m1 !in (s.maquinaNoSensor).t && m2 !in (s.maquinaNoSensor).t
+	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
+}
+
+pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, b:BaseDeAgua, t,t':Time] {
+	m in (s.maquinaNoSensor).t and m !in b.maquinaNaBase.t
+	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
+	b.maquinaNaBase.t' = b.maquinaNaBase.t + m
+--	recarregarBateria[m, t']
+}
+
+pred addMaquinaBaseDeAgua[m1:MaquinaDeIrrigacao, b:Base, s:Sensor, t,t':Time] {
+	(m1 !in (b.maquinaNaBase).t) and (m1 in (s.maquinaNoSensor).t)
+	(b.maquinaNaBase).t' = (b.maquinaNaBase).t + m1
 
 }
 
@@ -127,6 +140,8 @@ fact invariantes {
 
 pred init [t: Time] {
 	no (Sensor.maquinaNoSensor).t
+	no (BaseDeAgua.maquinaNaBase).t
+	no (BaseDeEnergia.maquinaNaBase).t
 	all b:Bateria | #(getCelulas[b, t]) = 3
 
 }
@@ -134,14 +149,14 @@ pred init [t: Time] {
 fact traces {
 	init [first]
 	all pre: Time-last | let pos = pre.next |
-	some m1:MaquinaDeIrrigacao, s: Sensor | all m2:MaquinaDeIrrigacao |
+	some m1:MaquinaDeIrrigacao, s: Sensor, b:BaseDeAgua | all m2:MaquinaDeIrrigacao |
 		addMaquinaSensor[m1, m2, s, pre, pos]  or
-		 removeMaquinaSensor[m1, s, pre, pos]
+		removeMaquinaSensor[m1, s, b, pre, pos]
 }
 
 pred show[]  {}
 
-run show for 12
+run show for 7
 
 
 -- Adicona tres celulas em uma bateria b
