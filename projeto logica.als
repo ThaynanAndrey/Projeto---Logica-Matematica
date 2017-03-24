@@ -39,7 +39,7 @@ pred umTanquePorMaquina[m: MaquinaDeIrrigacao] {
 }
 
 -- Restringe que cada tanque pertence à uma única máquina, independente do tempo.
-pred umaMaquinaPorTanque[t:TanqueDeAgua] {
+pred tanqueApenasEmUmaMaquina[t:TanqueDeAgua] {
 	one t.~tanque
 }
 
@@ -49,7 +49,7 @@ pred umaBateriaPorMaquina[m: MaquinaDeIrrigacao] {
 }
 
 -- Restringe que cada bateria pertence à uma única máquina, independente do tempo.
-pred umaMaquinaPorBateria[b:Bateria] {
+pred bateriaApenasEmUmaMaquina[b:Bateria] {
 	one b.~bateria
 }
 
@@ -60,13 +60,8 @@ pred maximoDeCelulasPorBateria[b: Bateria, t: Time] {
 
 
 -- Restringe que cada célula pertence à uma única bateria, em um determinado tempo.
-pred umaBateriaPorCelula[c:Celula, t:Time] {
+pred celulaApenasEmUmaBateria[c:Celula, t:Time] {
 	one c.~(celulas.t)
-}
-
--- Restringe que cada sensor possui uma única máquina, em um determinado tempo.
-pred umaMaquinaPorSensor[m1, m2:MaquinaDeIrrigacao, s:Sensor, t:Time] {
-	m1 in getMaquina[s, t] => m2 !in getMaquina[s, t]
 }
 
 -- Restringe que cada máquina pertence à um único sensor, em um determinado tempo.
@@ -118,6 +113,53 @@ pred removerDaBaseEnergia[m:MaquinaDeIrrigacao, bEnergia:BaseDeEnergia, t,t':Tim
 	bEnergia.maquinaNaBase.t' = bEnergia.maquinaNaBase.t - m
 }
 
+-- Restringe que cada sensor possui uma única máquina, em um determinado tempo.
+pred umaMaquinaPorSensor[m1, m2:MaquinaDeIrrigacao, s:Sensor, t:Time] {
+	m1 in getMaquina[s, t] => m2 !in getMaquina[s, t]
+}
+
+-- Restringe que cada máquina pertence à um único sensor, em um determinado tempo.
+pred maquinaApenasEmUmSensor[m:MaquinaDeIrrigacao, s1, s2:Sensor, t:Time] {
+	s1 in getSensor[m, t] => s2 !in getSensor[m, t]
+}
+
+-- Restringe que cada base possui uma única máquina, em um determinado tempo.
+pred umaMaquinaPorBase[m1, m2:MaquinaDeIrrigacao, b:Base, t:Time] {
+	 m1 in b.maquinaNaBase.t => m2 !in  b.maquinaNaBase.t
+}
+
+-- Verifica se uma máquina está em um sensor, em um determinado tempo.
+pred estaNoSensor[m:MaquinaDeIrrigacao, s:Sensor, t:Time] {
+	m in s.maquinaNoSensor.t
+}
+
+-- Verifica se uma máquina está em uma base, em um determinado tempo.
+pred estaNaBase[m:MaquinaDeIrrigacao, b:Base, t:Time] {
+	m in b.maquinaNaBase.t
+}
+
+-- Garante a exclusão mútua dos eventos de atender um sensor, e reabastecer água e bateria em um determinado tempo.
+pred umaOperacaoPorVez[m:MaquinaDeIrrigacao, s:Sensor, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia, t:Time] {
+	estaNoSensor[m, s, t] => (!estaNaBase[m, bAgua, t]  and !estaNaBase[m, bEnergia, t])
+	estaNaBase[m, bAgua, t] => (!estaNoSensor[m, s, t] and !estaNaBase[m, bEnergia, t])
+	estaNaBase[m, bEnergia, t]  => (!estaNoSensor[m, s, t] and !estaNaBase[m, bAgua, t] )
+}
+
+-- Verifica se a máquina saiu do sensor em um determinado tempo.
+pred maquinaSaiuDoSensor[m:MaquinaDeIrrigacao, s:Sensor, t:Time] {
+	m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next)
+}
+
+-- Verifica se a máquina entrou em uma base em um determinado tempo.
+pred maquinaEntrouNaBase[m:MaquinaDeIrrigacao, b:Base, t:Time] {
+	m in b.maquinaNaBase.(t.next)
+}
+
+-- Verifica se a máquina saiu de uma base em um determinado tempo.
+pred maquinaSaiuDaBase[m:MaquinaDeIrrigacao, b:Base, t:Time]{
+	m in b.maquinaNaBase.t and m !in b.maquinaNaBase.(t.next)
+}
+
 ------------------------------------------------------------- Funções -------------------------------------------------------------
 
 -- Retorna o conjunto de células de uma bateria em um determinado tempo.
@@ -137,8 +179,8 @@ fun getSensor[m: MaquinaDeIrrigacao, t: Time]: one Sensor {
 
 ------------------------------------------------------------- Fatos -------------------------------------------------------------
 
-fact invariantes {
-	
+fact quantidades  {
+
 	#MaquinaDeIrrigacao = 4
 	#TanqueDeAgua = 4
 	#Bateria = 4
@@ -147,39 +189,30 @@ fact invariantes {
 	#BaseDeEnergia = 1
 	#BaseDeAgua = 1
 
-	all m:MaquinaDeIrrigacao | umTanquePorMaquina[m]
-
-	all t:TanqueDeAgua | umaMaquinaPorTanque[t]
-
-	all m:MaquinaDeIrrigacao | umaBateriaPorMaquina[m]
-
-	all c:Celula, t:Time | umaBateriaPorCelula[c, t]
-
-	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
-
--------------------------------------------------------- Sensor --------------------------------------------------------
-
-	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, t:Time | (m1 in getMaquina[s1, t] => m2 !in getMaquina[s1, t]) and (s1 in getSensor[m1, t] => s2 !in getSensor[m1, t])
-	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | (m in s.maquinaNoSensor.t) => ((m !in bAgua.maquinaNaBase.t) and (m !in bEnergia.maquinaNaBase.t))
-
--------------------------------------------------------- BaseAgua --------------------------------------------------------
-
-	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | (m in bAgua.maquinaNaBase.t) => ((m !in s.maquinaNoSensor.t) and (m !in bEnergia.maquinaNaBase.t))
-	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua | (m in s.maquinaNoSensor.t and  m !in s.maquinaNoSensor.(t.next)) => m in bAgua.maquinaNaBase.(t.next)
-
--------------------------------------------------------- BaseEnergia --------------------------------------------------------
-
-	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | (m in bEnergia.maquinaNaBase.t) => ((m !in s.maquinaNoSensor.t) and (m !in bAgua.maquinaNaBase.t))
-	all m:MaquinaDeIrrigacao, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | (m in bAgua.maquinaNaBase.t and m !in bAgua.maquinaNaBase.(t.next)) => m in bEnergia.maquinaNaBase.(t.next)
-	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, t:Time, b:Base | m1 in b.maquinaNaBase.t => m2 !in  b.maquinaNaBase.t
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------	
-
-	some m:MaquinaDeIrrigacao, s:Sensor, bAgua:BaseDeAgua, t:Time | m in bAgua.maquinaNaBase.t and m in s.maquinaNoSensor.(t.prev)
-	some m:MaquinaDeIrrigacao, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia, t:Time | m in bEnergia.maquinaNaBase.t and m in bAgua.maquinaNaBase.(t.prev)
 }
 
-------------------------------------------------------------- Temporal -------------------------------------------------------------
+fact invariantes {
+
+	all m:MaquinaDeIrrigacao | umTanquePorMaquina[m]
+	all t:TanqueDeAgua | tanqueApenasEmUmaMaquina[t]
+	all m:MaquinaDeIrrigacao | umaBateriaPorMaquina[m]
+	all b:Bateria | bateriaApenasEmUmaMaquina[b]
+	all c:Celula, t:Time | celulaApenasEmUmaBateria[c, t]
+	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
+	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, t:Time | umaMaquinaPorSensor[m1, m2, s1, t] and maquinaApenasEmUmSensor[m1, s1, s2, t]
+	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | umaOperacaoPorVez[m, s, bAgua, bEnergia, t]
+	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, t:Time, b:Base | umaMaquinaPorBase[m1, m2, b, t]
+
+}
+
+fact Sequencial {
+
+	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua | maquinaSaiuDoSensor[m, s, t] => maquinaEntrouNaBase[m, bAgua, t]
+	all m:MaquinaDeIrrigacao, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | maquinaSaiuDaBase[m, bAgua, t] => maquinaEntrouNaBase[m, bEnergia, t]
+
+}
+
+------------------------------------------------------------- Gerenciamento Temporal -------------------------------------------------------------
 
 pred init [t: Time] {
 	no (Sensor.maquinaNoSensor).t
@@ -206,3 +239,32 @@ fact traces {
 pred show[]  {}
 
 run show for 12
+
+------------------------------------------------------------- Asserts -------------------------------------------------------------
+
+-- Checando se a quantidade das assinaturas no sistema estão corretas.
+assert testeQuantidadeDeAssinaturas {
+		#MaquinaDeIrrigacao = 4
+		#Bateria = 4
+		#TanqueDeAgua = 4
+		#Sensor = 5
+		#BaseDeEnergia = 1
+		#BaseDeAgua = 1
+}
+
+
+-- Teste responsável por analisar se toda máquina tem apenas uma bateria e um tanque.
+assert testeBateriasTanquePorMaquina {
+	all m:MaquinaDeIrrigacao | #(m.bateria) = 1 &&	#(m.tanque) = 1
+}
+
+
+-- Teste responsável por verificar se máquinas não estão compartilhando bateria ou tanque.
+assert testeCompartilhamentoDeBateriaOuTanqueNaMaquina {
+	all b:Bateria | #(b.~bateria) = 1 
+	all t:TanqueDeAgua | #(t.~tanque) = 1
+}
+
+check testeQuantidadeDeAssinaturas
+check testeBateriasTanquePorMaquina 
+check testeCompartilhamentoDeBateriaOuTanqueNaMaquina
