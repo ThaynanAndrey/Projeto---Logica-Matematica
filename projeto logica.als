@@ -24,7 +24,7 @@ sig BaseDeEnergia extends Base { }
 sig BaseDeAgua extends Base { }
 
 sig Bateria {
-	--celulas: Celula -> Time
+	celulas: Celula -> Time
 }
 
 sig Celula {}
@@ -42,11 +42,11 @@ pred umaBateriaPorMaquina[m: MaquinaDeIrrigacao] {
 	#(m.bateria) = 1
 }
 
-/*
+
 pred maximoDeCelulasPorBateria[b: Bateria, t: Time] {
 	#(getCelulas[b, t]) <= 3
 }
-*/
+
 
 pred bateriaPorMaquina[b:Bateria] {
 	one b.~bateria
@@ -57,22 +57,18 @@ pred tanquePorMaquina[t:TanqueDeAgua] {
 	one t.~tanque
 }
 
---pred celulaPorBateria[c:Celula, t:Time] {
-	---one c.~(celulas.t)
----}
-
---pred recarregarBateria[m:MaquinaDeIrrigacao, t: Time] {
---	
---}
+pred celulaPorBateria[c:Celula, t:Time] {
+	one c.~(celulas.t)
+}
 
 ------------------------------------------------------------- Funções -------------------------------------------------------------
 
 /*
 * Retorna o conjunto de células de uma bateria em um determinado tempo.
 */
---fun getCelulas[b:Bateria, t:Time]: set Celula {
-	--b.(celulas.t)
---}
+fun getCelulas[b:Bateria, t:Time]: set Celula {
+	b.(celulas.t)
+}
 
 /*
 * Retorna a máquina que está ligada ao sensor em um determinado tempo.
@@ -92,10 +88,10 @@ fun getSensor[m: MaquinaDeIrrigacao, t: Time]: one Sensor {
 
 fact invariantes {
 	
-	#MaquinaDeIrrigacao = 4
-	#Bateria = 4
-	#TanqueDeAgua = 4
-	#Sensor = 5
+	#MaquinaDeIrrigacao = 2
+	#Bateria = 2
+	#TanqueDeAgua = 2
+	#Sensor = 3
 	#BaseDeEnergia = 1
 	#BaseDeAgua = 1
 
@@ -107,14 +103,21 @@ fact invariantes {
 
 	all t:TanqueDeAgua | tanquePorMaquina[t]
 
---	all c:Celula, t:Time | celulaPorBateria[c, t]
+	all c:Celula, t:Time | celulaPorBateria[c, t]
 
---	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
+	--all b:Bateria, c:Celula, t:Time | b.celulas.t
+
+	all b: Bateria, t:Time | maximoDeCelulasPorBateria[b, t]
+
+	all c:Celula, bat:Bateria,bat2:Bateria - bat, t,t':Time | (c in bat.celulas.t) => ((c in bat.celulas.t') or (c !in bat2.celulas.t'))
+
+	--all m:MaquinaDeIrrigacao, s:Sensor,bat:Bateria,t,t':Time | some c:Celula | ((m in s.maquinaNoSensor.t) and (bat in m.bateria) and (c in bat.celulas.t) and (m !in s.maquinaNoSensor.t')) =>  (c !in bat.celulas.t')
 
 -------------------------------------------------------- Sensor --------------------------------------------------------
 
 	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, s1:Sensor, s2:Sensor - s1, t:Time | (m1 in getMaquina[s1, t] => m2 !in getMaquina[s1, t]) and (s1 in getSensor[m1, t] => s2 !in getSensor[m1, t])
 	all m:MaquinaDeIrrigacao, s:Sensor, t:Time, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia | (m in s.maquinaNoSensor.t) => ((m !in bAgua.maquinaNaBase.t) and (m !in bEnergia.maquinaNaBase.t))
+	--all m:MaquinaDeIrrigacao, s:Sensor,b:Bateria, t:Time | ((b in m.bateria) and  (#(b.celulas.t) = 0)) => (m !in s.maquinaNoSensor.t)
 
 -------------------------------------------------------- BaseAgua --------------------------------------------------------
 
@@ -143,10 +146,11 @@ pred addMaquinaSensor[m1:MaquinaDeIrrigacao, s:Sensor, t,t':Time,  bAgua:BaseDeA
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t + m1
 }
 
-pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia, t,t':Time] {
-	m in s.maquinaNoSensor.t
+pred removeMaquinaSensor[m:MaquinaDeIrrigacao, s:Sensor, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia,c:Celula,bat:Bateria, t,t':Time] {
+	(m in s.maquinaNoSensor.t) and (bat in m.bateria) and (c in bat.celulas.t)
 
 	(s.maquinaNoSensor).t' = (s.maquinaNoSensor).t - m
+	(bat.celulas).t' = (bat.celulas).t - c
 }
 
 pred removerDaBaseAgua[m:MaquinaDeIrrigacao,  bAgua:BaseDeAgua, bEnergia:BaseDeEnergia, t,t':Time] {
@@ -177,16 +181,16 @@ pred init [t: Time] {
 	no (BaseDeEnergia.maquinaNaBase).t
 	no (BaseDeEnergia.maquinaNaBase).(t.next) // Não precisa
 	no (BaseDeEnergia.maquinaNaBase).(t.next.next) // Não precisa
-	--all b:Bateria | #(getCelulas[b, t]) = 3
+	all b:Bateria | #(getCelulas[b, t]) = 3
 
 }
 
 fact traces {
 	init [first]
 	all pre: Time-last | let pos = pre.next |
-	some m1:MaquinaDeIrrigacao, s: Sensor, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia |
+	some m1:MaquinaDeIrrigacao, s: Sensor, bAgua:BaseDeAgua, bEnergia:BaseDeEnergia, bat:Bateria, c:Celula |
 		addMaquinaSensor[m1, s, pre, pos, bAgua, bEnergia]  or
-		removeMaquinaSensor[m1, s, bAgua, bEnergia, pre, pos] or
+		removeMaquinaSensor[m1, s, bAgua, bEnergia,c, bat, pre, pos] or
 		addMaquinaBaseDeAgua[m1, bAgua, s, pre, pos] or
 	    removerDaBaseAgua[m1, bAgua, bEnergia, pre, pos] or
 		removerDaBaseEnergia[m1, bEnergia, pre, pos]
@@ -194,7 +198,7 @@ fact traces {
 
 pred show[]  {}
 
-run show for 8
+run show for 6
 
 
 -- Adicona tres celulas em uma bateria b
