@@ -252,12 +252,10 @@ assert testeQuantidadeDeAssinaturas {
 		#BaseDeAgua = 1
 }
 
-
 -- Teste responsável por analisar se toda máquina tem apenas uma bateria e um tanque.
 assert testeBateriasTanquePorMaquina {
 	all m:MaquinaDeIrrigacao | #(m.bateria) = 1 &&	#(m.tanque) = 1
 }
-
 
 -- Teste responsável por verificar se máquinas não estão compartilhando bateria ou tanque.
 assert testeCompartilhamentoDeBateriaOuTanqueNaMaquina {
@@ -265,6 +263,18 @@ assert testeCompartilhamentoDeBateriaOuTanqueNaMaquina {
 	all t:TanqueDeAgua | #(t.~tanque) = 1
 }
 
+-- Verifica se em todo tempo, o número de células por bateria é no maximo 3.
+assert testeNumeroDeCelulasPorBaterias {
+	all b:Bateria, t:Time | #(getCelulas[b, t]) <= 3
+}
+
+-- Verifica se apenas uma máquina pode está na base de água por vez.
+assert verificaSeApenasUmaMaquinaNaBaseDeAguaPorTempo {
+	all m1:MaquinaDeIrrigacao,m2:MaquinaDeIrrigacao - m1, t:Time, b:Base | m1 in b.maquinaNaBase.t => m2 !in  b.maquinaNaBase.t
+}
+
 check testeQuantidadeDeAssinaturas
 check testeBateriasTanquePorMaquina 
+check testeNumeroDeCelulasPorBaterias
 check testeCompartilhamentoDeBateriaOuTanqueNaMaquina
+check verificaSeApenasUmaMaquinaNaBaseDeAguaPorTempo
