@@ -27,14 +27,17 @@ sig BaseDeAgua extends Base { }
 
 ------------------------------------------------------------- Predicados -------------------------------------------------------------
 
+-- Restringe que uma máquina possuirá apenas um tanque, independente do tempo.
 pred umTanquePorMaquina[m: MaquinaDeIrrigacao] {
 	one m.tanque
 }
 
+-- Restringe que um tanque só estará em uma máquina, independente do tempo.
 pred tanqueApenasEmUmaMaquina[tanqueDeAgua:TanqueDeAgua] {
 	one tanqueDeAgua.~tanque
 }
 
+-- Verifica se um tanque está ou vazio ou cheio, em um determinado tempo.
 pred ouCheioOuVazio[tanqueDeAgua:TanqueDeAgua, t:Time] {
 	one tanqueDeAgua.cheio.t
 }
@@ -53,10 +56,6 @@ fun getMaquina[s:Sensor, t:Time]: one MaquinaDeIrrigacao {
 */
 fun getSensor[m: MaquinaDeIrrigacao, t: Time]: one Sensor {
 	m.~(maquinaNoSensor.t)
-}
-
-fun tanqueEstaCheio[tanqueDeAgua:TanqueDeAgua, t:Time]: one Bool {
-	tanqueDeAgua.cheio.t
 }
 
 ------------------------------------------------------------- Fatos -------------------------------------------------------------
